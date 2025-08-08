@@ -12,10 +12,11 @@
     "node": ">=18"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.19.2",
-    "yahoo-finance2": "^2.11.2",
-    "technicalindicators": "^3.1.0",
     "morgan": "^1.10.0",
-    "cors": "^2.8.5"
+    "node-fetch": "^3.3.2",
+    "technicalindicators": "^3.1.0",
+    "yahoo-finance2": "^2.11.2"
   }
 }
