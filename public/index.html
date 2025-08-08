@@ -30,8 +30,8 @@
 <body>
 <div class="container">
   <header class="mb-3">
-    <h1 class="h4 mb-1">📈 Stocks 1D Analyzer</h1>
-    <div class="text-secondary small">Express API + Bootstrap • Data: Yahoo Finance • Timeframe: 1D</div>
+    <h1 class="h4 mb-1">📈 Stocks Analyzer</h1>
+    <div class="text-secondary small">Express API + Bootstrap • Data: Yahoo Finance • Timeframe: <span id="headerTimeframe">1D</span></div>
   </header>
 
   <div class="card shadow-sm mb-3">
@@ -46,6 +46,15 @@
         <div class="col-auto form-check ms-2">
           <input class="form-check-input" type="checkbox" id="showChart" checked>
           <label class="form-check-label" for="showChart">Show chart</label>
+        </div>
+        <div class="col-auto">
+          <select id="range" class="form-select form-select-sm" style="min-width:110px">
+            <option value="1d" selected>1 Day</option>
+            <option value="1h">1 Hour</option>
+            <option value="15m">15 Minutes</option>
+            <option value="5m">5 Minutes</option>
+            <option value="1w">1 Week</option>
+          </select>
         </div>
         <div class="col-auto"><button id="go" class="btn btn-primary" type="submit">Analyze</button></div>
         <div class="col-auto"><span id="spin" class="spinner-border spinner-border-sm text-primary d-none"></span></div>
@@ -180,18 +189,32 @@ if (tickerEl) {
   tickerEl.addEventListener('focus',()=>{ if (tickerEl.value) fetchSuggestions(tickerEl.value); });
 }
 
+// Update header timeframe when dropdown changes
+const rangeEl = document.getElementById('range');
+if (rangeEl) {
+  rangeEl.addEventListener('change', (e) => {
+    const headerTimeframe = document.getElementById('headerTimeframe');
+    if (headerTimeframe) {
+      headerTimeframe.textContent = e.target.value.toUpperCase();
+    }
+  });
+}
+
 let lastTicker = '';
 async function analyze(ticker){
   $('#alert').classList.add('d-none');
   $('#spin').classList.remove('d-none');
   try{
-    const r = await fetch(`/api/analyze/${encodeURIComponent(ticker)}`);
+    const range = document.getElementById('range').value;
+    const r = await fetch(`/api/analyze/${encodeURIComponent(ticker)}?range=${encodeURIComponent(range)}`);
     const j = await r.json();
     if(!j.ok) throw new Error(j.error||'API error');
 
     const { metrics, plan, candles } = j;
     $('#panel').classList.remove('d-none');
     $('#title').textContent = `${j.ticker} • ${metrics.trend_emoji} ${metrics.trend}`;
+    // Show selected range in badge
+    document.querySelector('#panel .badge').textContent = range.toUpperCase();
     $('#trend').textContent = metrics.trend;
     $('#rsi').textContent = fmt(metrics.rsi);
     $('#cci').textContent = fmt(metrics.cci,1);
@@ -265,21 +288,35 @@ function drawChart(canvas, rows, fib){
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   const dateStep = Math.ceil(xs / 7); // 7 labels max
+  
+  // Get current range to determine date format
+  const currentRange = document.getElementById('range')?.value || '1d';
+  
   for(let i=0;i<xs;i+=dateStep){
     const r = rows[i];
     let dateStr = '';
     if(r.t){
-      // If unix timestamp (seconds or ms)
       const ts = r.t > 1e12 ? r.t : r.t*1000;
       const d = new Date(ts);
-      dateStr = d.toISOString().slice(5,10); // MM-DD
+      
+      // Format based on timeframe
+      if (currentRange === '5m' || currentRange === '15m') {
+        dateStr = d.toTimeString().slice(0,5); // HH:MM
+      } else if (currentRange === '1h') {
+        dateStr = d.toTimeString().slice(0,5); // HH:MM
+      } else if (currentRange === '1w') {
+        dateStr = d.toISOString().slice(0,10); // YYYY-MM-DD
+      } else {
+        dateStr = d.toISOString().slice(5,10); // MM-DD
+      }
     } else if(r.date){
-      dateStr = r.date.length > 6 ? r.date.slice(5,10) : r.date; // MM-DD or fallback
+      dateStr = r.date.length > 6 ? r.date.slice(5,10) : r.date;
     } else {
       dateStr = String(i);
     }
     ctx.fillText(dateStr, x(i), H-padB+4);
   }
+  
   // Always show last date
   if(xs>0){
     const r = rows[xs-1];
@@ -287,7 +324,16 @@ function drawChart(canvas, rows, fib){
     if(r.t){
       const ts = r.t > 1e12 ? r.t : r.t*1000;
       const d = new Date(ts);
-      dateStr = d.toISOString().slice(5,10);
+      
+      if (currentRange === '5m' || currentRange === '15m') {
+        dateStr = d.toTimeString().slice(0,5);
+      } else if (currentRange === '1h') {
+        dateStr = d.toTimeString().slice(0,5);
+      } else if (currentRange === '1w') {
+        dateStr = d.toISOString().slice(0,10);
+      } else {
+        dateStr = d.toISOString().slice(5,10);
+      }
     } else if(r.date){
       dateStr = r.date.length > 6 ? r.date.slice(5,10) : r.date;
     } else {

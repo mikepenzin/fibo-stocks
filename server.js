@@ -93,7 +93,8 @@ app.get('/api/suggest', async (req, res) => {
 app.get('/api/analyze/:ticker', async (req, res) => {
   try {
     const { ticker } = req.params;
-    const data = await analyzeTicker(ticker.toUpperCase());
+    const { range = '1d' } = req.query; // Default to 1d if not provided
+    const data = await analyzeTicker(ticker.toUpperCase(), range);
     res.json({ ok: true, ...data });
   } catch (err) {
     console.error(err);
