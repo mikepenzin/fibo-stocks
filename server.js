@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import { analyzeTicker } from './src/analyze.js';
+import { backtestTicker } from './src/backtest.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -95,6 +96,19 @@ app.get('/api/analyze/:ticker', async (req, res) => {
     const { ticker } = req.params;
     const { range = '1d' } = req.query; // Default to 1d if not provided
     const data = await analyzeTicker(ticker.toUpperCase(), range);
+    res.json({ ok: true, ...data });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: err.message || 'Internal error' });
+  }
+});
+
+// Backtest endpoint
+app.get('/api/backtest/:ticker', async (req, res) => {
+  try {
+    const { ticker } = req.params;
+    const { range = '1d' } = req.query;
+    const data = await backtestTicker(ticker.toUpperCase(), range);
     res.json({ ok: true, ...data });
   } catch (err) {
     console.error(err);

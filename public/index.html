@@ -66,6 +66,7 @@
 
   <div class="row g-3 mb-3">
     <div class="col-12 mb-2 d-flex justify-content-end gap-2">
+      <button id="backtestBtn" class="btn btn-outline-warning btn-sm">Backtest Fib</button>
       <button id="downloadImg" class="btn btn-outline-primary btn-sm">Download as Image</button>
       <button id="copyImg" class="btn btn-outline-secondary btn-sm">Copy Result to Clipboard</button>
     </div>
@@ -98,6 +99,16 @@
           <hr>
           <div class="mb-1 fw-semibold">Fibonacci levels (auto swing)</div>
           <div class="fib-grid small mono" id="fibs"></div>
+          <div id="btSection" class="mt-3 d-none">
+            <div class="fw-semibold mb-1">Backtest (recent swings)</div>
+            <div class="small" id="btStats"></div>
+            <div class="table-responsive small mt-2">
+              <table class="table table-sm table-bordered align-middle mb-0">
+                <thead class="table-light"><tr><th>Date</th><th>Entry(50%)</th><th>Target(38.2%)</th><th>Stop(61.8%)</th><th>Outcome</th></tr></thead>
+                <tbody id="btRows"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -135,6 +146,12 @@ const $ = s=>document.querySelector(s);
 const show = (el, v)=>el.classList.toggle('d-none', !v);
 const pct = (x,d=2)=>Number.isFinite(x)?((x>=0?'+':'')+x.toFixed(d)+'%'):'n/a';
 const fmt = (x,d=2)=>Number.isFinite(x)?Number(x).toFixed(d):'n/a';
+function clearBacktest(){
+  const s=document.getElementById('btSection'); if(!s) return;
+  s.classList.add('d-none');
+  const st=document.getElementById('btStats'); if(st) st.textContent='';
+  const rows=document.getElementById('btRows'); if(rows) rows.innerHTML='';
+}
 
 // Uppercase + autocomplete for ticker input via backend proxy
 const tickerEl = $('#ticker');
@@ -197,11 +214,13 @@ if (rangeEl) {
     if (headerTimeframe) {
       headerTimeframe.textContent = e.target.value.toUpperCase();
     }
+    clearBacktest(); // invalidate previous backtest when timeframe changes
   });
 }
 
 let lastTicker = '';
 async function analyze(ticker){
+  clearBacktest(); // hide old backtest while loading new ticker
   $('#alert').classList.add('d-none');
   $('#spin').classList.remove('d-none');
   try{
@@ -423,6 +442,33 @@ document.getElementById('copyImg').addEventListener('click', async () => {
     });
   });
 });
+
+// Backtest logic
+const backtestBtn = document.getElementById('backtestBtn');
+if (backtestBtn){
+  backtestBtn.addEventListener('click', async ()=>{
+    const t = tickerEl.value.trim();
+    if(!t){ showToast('Enter ticker first','danger'); return; }
+    backtestBtn.disabled = true; backtestBtn.textContent = 'Testing...';
+    try {
+      const range = document.getElementById('range').value;
+      const r = await fetch(`/api/backtest/${encodeURIComponent(t)}?range=${encodeURIComponent(range)}`);
+      const j = await r.json();
+      if(!j.ok) throw new Error(j.error||'Backtest failed');
+      const s = j.stats;
+      const statsLine = `Setups: ${s.setups} • Wins: ${s.wins} • Losses: ${s.losses} • No Exit: ${s.noExit} • WinRate: ${s.winRate}%`;
+      document.getElementById('btStats').textContent = statsLine;
+      const rowsHtml = (j.samples||[]).map(r=>`<tr><td>${r.date||''}</td><td>${fmt(r.entry)}</td><td>${fmt(r.target)}</td><td>${fmt(r.stop)}</td><td class="${r.outcome==='WIN'?'text-success':r.outcome==='LOSS'?'text-danger':'text-muted'}">${r.outcome}</td></tr>`).join('');
+      document.getElementById('btRows').innerHTML = rowsHtml || '<tr><td colspan="5" class="text-center text-muted">No samples</td></tr>';
+      document.getElementById('btSection').classList.remove('d-none');
+      showToast('Backtest done','success');
+    } catch(e){
+      showToast(e.message,'danger');
+    } finally {
+      backtestBtn.disabled = false; backtestBtn.textContent = 'Backtest Fib';
+    }
+  });
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>

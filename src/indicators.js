@@ -10,17 +10,16 @@ export function computeMetrics(candles, nextEarningsISO) {
   const cciArr = CCI.calculate({ period: 14, high, low, close });
   const atrArr = ATR.calculate({ period: 14, high, low, close });
 
+  const sma20Arr = SMA.calculate({ period: 20, values: close });
   const sma50Arr = SMA.calculate({ period: 50, values: close });
-  const sma200Arr = SMA.calculate({ period: 200, values: close });
 
   const lastClose = close[close.length - 1];
   const rsi = rsiArr[rsiArr.length - 1];
   const cci = cciArr[cciArr.length - 1];
   const atr = atrArr[atrArr.length - 1];
 
-  // Align SMA results (they start after N-1 bars)
+  const sma20 = sma20Arr[sma20Arr.length - 1];
   const sma50 = sma50Arr[sma50Arr.length - 1];
-  const sma200 = sma200Arr[sma200Arr.length - 1];
 
   const atr_pct = (atr / lastClose) * 100;
 
@@ -29,13 +28,15 @@ export function computeMetrics(candles, nextEarningsISO) {
   const volMA = smaVol20[smaVol20.length - 1];
   const vol_delta = ((vol[vol.length - 1] - volMA) / volMA) * 100;
 
+  // Updated trend logic: short / medium term structure via 20 / 50 MAs
   let trend = 'Sideways', trend_emoji = '🟡';
-  if (lastClose > sma50 && sma50 > sma200) { 
-    trend = 'Uptrend'; trend_emoji = '🟢'; 
-  } else if (lastClose < sma50 && sma50 < sma200) { 
-    trend = 'Downtrend'; trend_emoji = '🔴'; 
-  } else if (sma50 < sma200) {
-    // If SMA50 is below SMA200, consider it bearish even if price is slightly above SMA50
+  if (lastClose > sma20 && sma20 > sma50) {
+    trend = 'Uptrend'; trend_emoji = '🟢';
+  } else if (lastClose < sma20 && sma20 < sma50) {
+    trend = 'Downtrend'; trend_emoji = '🔴';
+  } else if (sma20 > sma50 && lastClose >= sma20 * 0.995) { // allow tiny pullback and still call it uptrend
+    trend = 'Uptrend'; trend_emoji = '🟢';
+  } else if (sma20 < sma50 && lastClose <= sma20 * 1.005) { // allow tiny bounce
     trend = 'Downtrend'; trend_emoji = '🔴';
   }
 
