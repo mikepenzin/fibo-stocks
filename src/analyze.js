@@ -2,7 +2,7 @@ import { fetchDailyOHLCV, fetchNextEarnings } from './providers/yahoo.js';
 import { computeMetrics } from './indicators.js';
 import { buildPlan } from './plan.js';
 
-export async function analyzeTicker(ticker, range = '1d') {
+export async function analyzeTicker(ticker, range = '1d', opts={}) {
   // Map frontend range values to Yahoo Finance parameters
   let yahooRange, yahooInterval;
   
@@ -36,7 +36,7 @@ export async function analyzeTicker(ticker, range = '1d') {
   if (!candles.length) throw new Error('No data for ticker');
   
   const nextEarnings = await fetchNextEarnings(ticker); // may be null
-  const metrics = computeMetrics(candles, nextEarnings);
+  const metrics = computeMetrics(candles, nextEarnings, opts);
   const plan = buildPlan(candles, metrics);
   
   return { ticker, timeframe: range.toUpperCase(), metrics, plan, candles };

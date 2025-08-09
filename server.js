@@ -94,8 +94,8 @@ app.get('/api/suggest', async (req, res) => {
 app.get('/api/analyze/:ticker', async (req, res) => {
   try {
     const { ticker } = req.params;
-    const { range = '1d' } = req.query; // Default to 1d if not provided
-    const data = await analyzeTicker(ticker.toUpperCase(), range);
+    const { range = '1d', mabasis = '20-50' } = req.query; // Default to 1d and MA20/50
+    const data = await analyzeTicker(ticker.toUpperCase(), range, { mabasis });
     res.json({ ok: true, ...data });
   } catch (err) {
     console.error(err);
@@ -107,8 +107,8 @@ app.get('/api/analyze/:ticker', async (req, res) => {
 app.get('/api/backtest/:ticker', async (req, res) => {
   try {
     const { ticker } = req.params;
-    const { range = '1d' } = req.query;
-    const data = await backtestTicker(ticker.toUpperCase(), range);
+    const { range = '1d', mabasis = '20-50' } = req.query;
+    const data = await backtestTicker(ticker.toUpperCase(), range, { mabasis });
     res.json({ ok: true, ...data });
   } catch (err) {
     console.error(err);

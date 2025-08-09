@@ -1,6 +1,11 @@
 import { RSI, CCI, ATR, SMA } from 'technicalindicators';
 
-export function computeMetrics(candles, nextEarningsISO) {
+export function computeMetrics(candles, nextEarningsISO, opts={}) {
+  const basis = (opts.mabasis||'20-50').toLowerCase();
+  const useAlt = basis === '50-150';
+  const fastPeriod = useAlt ? 50 : 20;
+  const slowPeriod = useAlt ? 150 : 50;
+
   const close = candles.map(r => r.c);
   const high  = candles.map(r => r.h);
   const low   = candles.map(r => r.l);
@@ -10,33 +15,31 @@ export function computeMetrics(candles, nextEarningsISO) {
   const cciArr = CCI.calculate({ period: 14, high, low, close });
   const atrArr = ATR.calculate({ period: 14, high, low, close });
 
-  const sma20Arr = SMA.calculate({ period: 20, values: close });
-  const sma50Arr = SMA.calculate({ period: 50, values: close });
+  const fastArr = SMA.calculate({ period: fastPeriod, values: close });
+  const slowArr = SMA.calculate({ period: slowPeriod, values: close });
 
   const lastClose = close[close.length - 1];
   const rsi = rsiArr[rsiArr.length - 1];
   const cci = cciArr[cciArr.length - 1];
   const atr = atrArr[atrArr.length - 1];
 
-  const sma20 = sma20Arr[sma20Arr.length - 1];
-  const sma50 = sma50Arr[sma50Arr.length - 1];
+  const fast = fastArr[fastArr.length - 1];
+  const slow = slowArr[slowArr.length - 1];
 
   const atr_pct = (atr / lastClose) * 100;
 
-  // Volume delta vs 20d
   const smaVol20 = SMA.calculate({ period: 20, values: vol });
   const volMA = smaVol20[smaVol20.length - 1];
   const vol_delta = ((vol[vol.length - 1] - volMA) / volMA) * 100;
 
-  // Updated trend logic: short / medium term structure via 20 / 50 MAs
   let trend = 'Sideways', trend_emoji = '🟡';
-  if (lastClose > sma20 && sma20 > sma50) {
+  if (lastClose > fast && fast > slow) {
     trend = 'Uptrend'; trend_emoji = '🟢';
-  } else if (lastClose < sma20 && sma20 < sma50) {
+  } else if (lastClose < fast && fast < slow) {
     trend = 'Downtrend'; trend_emoji = '🔴';
-  } else if (sma20 > sma50 && lastClose >= sma20 * 0.995) { // allow tiny pullback and still call it uptrend
+  } else if (fast > slow && lastClose >= fast * 0.995) {
     trend = 'Uptrend'; trend_emoji = '🟢';
-  } else if (sma20 < sma50 && lastClose <= sma20 * 1.005) { // allow tiny bounce
+  } else if (fast < slow && lastClose <= fast * 1.005) {
     trend = 'Downtrend'; trend_emoji = '🔴';
   }
 
@@ -47,11 +50,12 @@ export function computeMetrics(candles, nextEarningsISO) {
   }
 
   return {
-    last_close: lastClose,
+    last_close: lastClose, // expose current price for UI table
     rsi: round(rsi), cci: round(cci), atr: round(atr), atr_pct: round(atr_pct),
     vol_delta: round(vol_delta,1),
     trend, trend_emoji,
-    earnings_str
+    earnings_str,
+    ma_basis: useAlt ? '50/150' : '20/50'
   };
 }
 
