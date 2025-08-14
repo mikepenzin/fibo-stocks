@@ -6,6 +6,9 @@ import cors from 'cors';
 import { analyzeTicker } from './src/analyze.js';
 import { backtestTicker } from './src/backtest.js';
 
+// Bypass SSL certificate validation for development/corporate networks
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -95,11 +98,13 @@ app.get('/api/analyze/:ticker', async (req, res) => {
   try {
     const { ticker } = req.params;
     const { range = '1d', mabasis = '20-50' } = req.query; // Default to 1d and MA20/50
+    console.log(`Analyzing ${ticker} with range ${range} and mabasis ${mabasis}`);
     const data = await analyzeTicker(ticker.toUpperCase(), range, { mabasis });
     res.json({ ok: true, ...data });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: err.message || 'Internal error' });
+    console.error('Analysis error:', err);
+    const errorMsg = err.message || 'Failed to analyze ticker';
+    res.status(500).json({ ok: false, error: errorMsg });
   }
 });
 
@@ -119,8 +124,18 @@ app.get('/api/backtest/:ticker', async (req, res) => {
 // Serve frontend
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Fallback to index.html
+// Fallback to index.html for navigation routes (not for API or static files)
 app.get('*', (req, res) => {
+  // Don't intercept API routes or static files
+  if (req.path.startsWith('/api/') || 
+      req.path.includes('.js') || 
+      req.path.includes('.css') || 
+      req.path.includes('.html') ||
+      req.path.includes('.png') ||
+      req.path.includes('.jpg') ||
+      req.path.includes('.ico')) {
+    return res.status(404).send('Not found');
+  }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
