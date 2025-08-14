@@ -196,3 +196,7 @@ canvas {
     background: #f3f6fa;
   }
 }
+
+.zoom-icon-margin {
+    margin: .5rem 0 !important;
+}
