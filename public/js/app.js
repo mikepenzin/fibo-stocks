@@ -98,11 +98,16 @@ function initializeEventHandlers() {
   }
 }
 
-// Initialize everything when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
+// Main initialization function - called after all scripts are loaded
+function initApp() {
   initializeTickerInput();
   initializeEventHandlers();
   initializeModals();
+  
+  // Setup routing
+  if (window.stockRouter) {
+    stockRouter.setupEventListeners();
+  }
   
   // Add mobile-friendly enhancements
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -113,9 +118,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Improve touch experience
     document.addEventListener('touchstart', function() {}, {passive: true});
   }
-  
-  // Check for URL parameters and auto-load analysis
-  setTimeout(() => {
-    checkURLOnLoad();
-  }, 500); // Small delay to ensure all components are initialized
+}
+
+// Legacy DOMContentLoaded for fallback (in case not using dynamic loading)
+document.addEventListener('DOMContentLoaded', function() {
+  // Only initialize if not already initialized by dynamic loader
+  if (!window.appInitialized) {
+    initApp();
+    
+    // Check for URL parameters and auto-load analysis
+    setTimeout(() => {
+      checkURLOnLoad();
+    }, 500); // Small delay to ensure all components are initialized
+  }
 });

@@ -101,15 +101,15 @@ function initializeModals() {
     }
   }
 
-  // Attach listeners with mobile support
-  const mainPriceCanvas = document.getElementById('chart');
-  addModalTrigger(mainPriceCanvas, openPriceModal);
+  // Canvas click triggers removed - modals now only open via zoom buttons
+  // const mainPriceCanvas = document.getElementById('chart');
+  // addModalTrigger(mainPriceCanvas, openPriceModal);
   
-  const mainFlowCanvas = document.getElementById('flowChart');
-  addModalTrigger(mainFlowCanvas, openFlowModal);
+  // const mainFlowCanvas = document.getElementById('flowChart');
+  // addModalTrigger(mainFlowCanvas, openFlowModal);
   
-  const mainSRCanvas = document.getElementById('srChart');
-  addModalTrigger(mainSRCanvas, openSRModal);
+  // const mainSRCanvas = document.getElementById('srChart');
+  // addModalTrigger(mainSRCanvas, openSRModal);
   
   // Save buttons with mobile-friendly download
   const priceModalSave = document.getElementById('priceModalSave'); 

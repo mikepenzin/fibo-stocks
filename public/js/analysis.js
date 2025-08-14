@@ -71,16 +71,73 @@ async function analyze(ticker){
     if (lastSRLevels && lastSRLevels.length > 0) {
       const currentPrice = metrics.last_close;
       
-      // Instead of relying on type classification, determine support/resistance by position
-      const resistances = lastSRLevels.filter(sr => sr.level > currentPrice)
-                                    .sort((a,b) => a.level - b.level); // closest first
+      // Add buffer zone around current price (0.5% on each side)
+      const bufferPercent = 0.005; // 0.5%
+      const buffer = currentPrice * bufferPercent;
       
-      const supports = lastSRLevels.filter(sr => sr.level < currentPrice)
-                                  .sort((a,b) => b.level - a.level); // closest first (highest first)
+      // Classify levels with buffer zone:
+      // - Resistance: levels above (current price + buffer)
+      // - Support: levels below (current price - buffer)
+      // - Levels within buffer zone are classified by their intended role
       
-      // Display key levels with colors matching the chart
-      const keyRes = resistances[0];
-      const keySup = supports[0];
+      let resistances = lastSRLevels.filter(sr => sr.level > (currentPrice + buffer))
+                                   .sort((a,b) => a.level - b.level);
+      let supports = lastSRLevels.filter(sr => sr.level < (currentPrice - buffer))
+                                 .sort((a,b) => b.level - a.level);
+      
+      // For levels very close to current price (within buffer), classify by context
+      const nearbyLevels = lastSRLevels.filter(sr => 
+        sr.level >= (currentPrice - buffer) && sr.level <= (currentPrice + buffer)
+      );
+      
+      // Add nearby levels to appropriate category based on which side has more room
+      nearbyLevels.forEach(level => {
+        const distanceAbove = Math.abs(level.level - (currentPrice + buffer));
+        const distanceBelow = Math.abs(level.level - (currentPrice - buffer));
+        
+        if (distanceBelow <= distanceAbove) {
+          // Closer to lower bound, treat as support
+          supports.push(level);
+        } else {
+          // Closer to upper bound, treat as resistance  
+          resistances.push(level);
+        }
+      });
+      
+      // Re-sort after adding nearby levels
+      resistances.sort((a,b) => a.level - b.level);
+      supports.sort((a,b) => b.level - a.level);
+      
+      // Helper function to find levels within percentage range
+      const findWithinRange = (levels, price, isResistance, percent) => {
+        const maxDistance = price * percent;
+        return levels.filter(level => {
+          const distance = isResistance ? 
+            (level.level - price) : 
+            (price - level.level);
+          return distance <= maxDistance && distance >= -buffer; // Allow negative distance within buffer
+        });
+      };
+      
+      // Try different thresholds: 2%, 5%, 10%, 15%, then any level
+      let keyRes = null;
+      let keySup = null;
+      
+      for (const threshold of [0.02, 0.05, 0.10, 0.15, 1.0]) {
+        if (!keyRes) {
+          const nearResistances = findWithinRange(resistances, currentPrice, true, threshold);
+          if (nearResistances.length > 0) keyRes = nearResistances[0];
+        }
+        if (!keySup) {
+          const nearSupports = findWithinRange(supports, currentPrice, false, threshold);
+          if (nearSupports.length > 0) keySup = nearSupports[0];
+        }
+        if (keyRes && keySup) break;
+      }
+      
+      // Fallback to closest levels if still nothing found
+      if (!keyRes && resistances.length > 0) keyRes = resistances[0];
+      if (!keySup && supports.length > 0) keySup = supports[0];
       
       $('#keyResistance').innerHTML = keyRes ? 
         `<span style="color: #E53E3E; font-weight: 500;">${fmt(keyRes.level)}</span>` : 
