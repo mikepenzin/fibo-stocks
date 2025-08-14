@@ -10,9 +10,20 @@ async function analyze(ticker){
   $('#alert').classList.add('d-none');
   $('#spin').classList.remove('d-none');
   
-  // Hide action buttons while loading
+  // Add loading overlay to panel while keeping it visible
+  const panel = $('#panel');
   const actionButtons = document.getElementById('actionButtons');
-  if (actionButtons) actionButtons.classList.add('d-none');
+  
+  // Show loading state - keep panel visible but add loading overlay
+  if (panel && !panel.classList.contains('d-none')) {
+    panel.style.opacity = '0.6';
+    panel.style.pointerEvents = 'none';
+  }
+  
+  // Hide action buttons while loading only if panel is not yet visible
+  if (actionButtons && panel && panel.classList.contains('d-none')) {
+    actionButtons.classList.add('d-none');
+  }
   
   try{
     const range = document.getElementById('range').value;
@@ -21,7 +32,7 @@ async function analyze(ticker){
     const j = await r.json();
     if(!j.ok) throw new Error(j.error||'API error');
 
-    const { metrics, plan, candles } = j;
+    const { metrics, plan, candles, companyName, priceChange, priceChangePercent } = j;
     lastTicker = ticker;
     
     // Update URL with current analysis parameters for sharing
@@ -41,12 +52,26 @@ async function analyze(ticker){
     if (actionButtons) actionButtons.classList.remove('d-none');
     
     $('#title').textContent = `${j.ticker} • ${metrics.trend_emoji} ${metrics.trend}`;
+    // Display company name
+    $('#companyName').textContent = companyName || '';
+    
     // Show selected range in badge
     document.querySelector('#panel .badge').textContent = range.toUpperCase();
     document.getElementById('tfBadge').textContent = range.toUpperCase();
     const headerMABasis = document.getElementById('headerMABasis');
     if(headerMABasis) headerMABasis.textContent = metrics.ma_basis;
-    document.getElementById('price').textContent = fmt(metrics.last_close);
+    
+    // Show price and day change percentage together in #price
+    const priceEl = document.getElementById('price');
+    let priceText = fmt(metrics.last_close);
+    if (priceChangePercent !== null && priceChangePercent !== undefined) {
+      const pctText = ` (${priceChangePercent >= 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%)`;
+      const color = priceChangePercent > 0 ? 'text-success' : (priceChangePercent < 0 ? 'text-danger' : 'text-muted');
+      priceEl.innerHTML = `<span>${priceText}</span><span style='margin-left:8px;font-size:0.95em;' class='${color}'>${pctText}</span>`;
+    } else {
+      priceEl.innerHTML = `<span>${priceText}</span><span style='margin-left:8px;font-size:0.95em;' class='text-muted'>(N/A)</span>`;
+    }
+    
     $('#trend').textContent = metrics.trend;
     
     $('#rsi').textContent = fmt(metrics.rsi);
@@ -71,73 +96,43 @@ async function analyze(ticker){
     if (lastSRLevels && lastSRLevels.length > 0) {
       const currentPrice = metrics.last_close;
       
-      // Add buffer zone around current price (0.5% on each side)
-      const bufferPercent = 0.005; // 0.5%
-      const buffer = currentPrice * bufferPercent;
+      // Use a very small buffer to avoid exact price matches only
+      const exactMatchBuffer = currentPrice * 0.0005; // 0.05% - just to avoid floating point issues
       
-      // Classify levels with buffer zone:
-      // - Resistance: levels above (current price + buffer)
-      // - Support: levels below (current price - buffer)
-      // - Levels within buffer zone are classified by their intended role
+      // Classify levels by position relative to current price
+      const resistances = lastSRLevels.filter(sr => sr.level > (currentPrice + exactMatchBuffer))
+                                     .sort((a,b) => a.level - b.level); // closest first
       
-      let resistances = lastSRLevels.filter(sr => sr.level > (currentPrice + buffer))
-                                   .sort((a,b) => a.level - b.level);
-      let supports = lastSRLevels.filter(sr => sr.level < (currentPrice - buffer))
-                                 .sort((a,b) => b.level - a.level);
+      const supports = lastSRLevels.filter(sr => sr.level < (currentPrice - exactMatchBuffer))
+                                   .sort((a,b) => b.level - a.level); // closest first (highest first)
       
-      // For levels very close to current price (within buffer), classify by context
-      const nearbyLevels = lastSRLevels.filter(sr => 
-        sr.level >= (currentPrice - buffer) && sr.level <= (currentPrice + buffer)
-      );
-      
-      // Add nearby levels to appropriate category based on which side has more room
-      nearbyLevels.forEach(level => {
-        const distanceAbove = Math.abs(level.level - (currentPrice + buffer));
-        const distanceBelow = Math.abs(level.level - (currentPrice - buffer));
-        
-        if (distanceBelow <= distanceAbove) {
-          // Closer to lower bound, treat as support
-          supports.push(level);
-        } else {
-          // Closer to upper bound, treat as resistance  
-          resistances.push(level);
-        }
-      });
-      
-      // Re-sort after adding nearby levels
-      resistances.sort((a,b) => a.level - b.level);
-      supports.sort((a,b) => b.level - a.level);
-      
-      // Helper function to find levels within percentage range
-      const findWithinRange = (levels, price, isResistance, percent) => {
-        const maxDistance = price * percent;
-        return levels.filter(level => {
-          const distance = isResistance ? 
-            (level.level - price) : 
-            (price - level.level);
-          return distance <= maxDistance && distance >= -buffer; // Allow negative distance within buffer
-        });
-      };
-      
-      // Try different thresholds: 2%, 5%, 10%, 15%, then any level
+      // Find the most relevant levels - prioritize closer levels but allow wider range
       let keyRes = null;
       let keySup = null;
       
-      for (const threshold of [0.02, 0.05, 0.10, 0.15, 1.0]) {
-        if (!keyRes) {
-          const nearResistances = findWithinRange(resistances, currentPrice, true, threshold);
-          if (nearResistances.length > 0) keyRes = nearResistances[0];
+      // For resistance: try different ranges, starting tight
+      for (const range of [0.02, 0.05, 0.10, 0.20]) { // 2%, 5%, 10%, 20%
+        if (!keyRes && resistances.length > 0) {
+          const maxDistance = currentPrice * range;
+          const candidates = resistances.filter(r => (r.level - currentPrice) <= maxDistance);
+          if (candidates.length > 0) {
+            keyRes = candidates[0]; // closest one
+            break;
+          }
         }
-        if (!keySup) {
-          const nearSupports = findWithinRange(supports, currentPrice, false, threshold);
-          if (nearSupports.length > 0) keySup = nearSupports[0];
-        }
-        if (keyRes && keySup) break;
       }
       
-      // Fallback to closest levels if still nothing found
-      if (!keyRes && resistances.length > 0) keyRes = resistances[0];
-      if (!keySup && supports.length > 0) keySup = supports[0];
+      // For support: try different ranges, starting tight  
+      for (const range of [0.02, 0.05, 0.10, 0.20]) { // 2%, 5%, 10%, 20%
+        if (!keySup && supports.length > 0) {
+          const maxDistance = currentPrice * range;
+          const candidates = supports.filter(s => (currentPrice - s.level) <= maxDistance);
+          if (candidates.length > 0) {
+            keySup = candidates[0]; // closest one
+            break;
+          }
+        }
+      }
       
       $('#keyResistance').innerHTML = keyRes ? 
         `<span style="color: #E53E3E; font-weight: 500;">${fmt(keyRes.level)}</span>` : 
@@ -180,6 +175,19 @@ async function analyze(ticker){
     const a=$('#alert'); a.textContent = 'Error: ' + (err.message || err); a.classList.remove('d-none');
   }finally{
     $('#spin').classList.add('d-none');
+    
+    // Remove loading state from panel
+    const panel = $('#panel');
+    if (panel) {
+      panel.style.opacity = '';
+      panel.style.pointerEvents = '';
+    }
+    
+    // Always show action buttons after loading completes (success or error)
+    const actionButtons = document.getElementById('actionButtons');
+    if (actionButtons && !panel.classList.contains('d-none')) {
+      actionButtons.classList.remove('d-none');
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-import { fetchDailyOHLCV, fetchNextEarnings } from './providers/yahoo.js';
+import { fetchDailyOHLCV, fetchNextEarnings, fetchTickerInfo } from './providers/yahoo.js';
 import { computeMetrics } from './indicators.js';
 import { buildPlan } from './plan.js';
 
@@ -32,12 +32,41 @@ export async function analyzeTicker(ticker, range = '1d', opts={}) {
       yahooInterval = '1d';
   }
   
-  const candles = await fetchDailyOHLCV(ticker, { range: yahooRange, interval: yahooInterval });
+  // Fetch candles and company info in parallel
+  const [candles, tickerInfo, nextEarnings] = await Promise.all([
+    fetchDailyOHLCV(ticker, { range: yahooRange, interval: yahooInterval }),
+    fetchTickerInfo(ticker),
+    fetchNextEarnings(ticker)
+  ]);
+  
   if (!candles.length) throw new Error('No data for ticker');
   
-  const nextEarnings = await fetchNextEarnings(ticker); // may be null
+  // Calculate price change from previous close
+  const currentPrice = candles[candles.length - 1].c;
+  let priceChange = null;
+  let priceChangePercent = null;
+  
+  if (tickerInfo.previousClose && tickerInfo.previousClose > 0) {
+    priceChange = currentPrice - tickerInfo.previousClose;
+    priceChangePercent = (priceChange / tickerInfo.previousClose) * 100;
+  } else if (candles.length >= 2) {
+    // Fallback: use previous candle's close
+    const prevClose = candles[candles.length - 2].c;
+    priceChange = currentPrice - prevClose;
+    priceChangePercent = (priceChange / prevClose) * 100;
+  }
+  
   const metrics = computeMetrics(candles, nextEarnings, opts);
   const plan = buildPlan(candles, metrics);
   
-  return { ticker, timeframe: range.toUpperCase(), metrics, plan, candles };
+  return { 
+    ticker, 
+    timeframe: range.toUpperCase(), 
+    metrics, 
+    plan, 
+    candles,
+    companyName: tickerInfo.companyName,
+    priceChange,
+    priceChangePercent
+  };
 }

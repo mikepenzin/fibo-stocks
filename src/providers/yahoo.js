@@ -33,6 +33,22 @@ export async function fetchDailyOHLCV(ticker, { range='6mo', interval='1d' } = {
   })).filter(r => Number.isFinite(r.c) && Number.isFinite(r.h) && Number.isFinite(r.l));
 }
 
+export async function fetchTickerInfo(ticker) {
+  try {
+    const res = await yahooFinance.quoteSummary(ticker, { modules: ['price', 'summaryProfile'] });
+    return {
+      companyName: res?.summaryProfile?.longName || res?.price?.longName || ticker,
+      previousClose: res?.price?.regularMarketPreviousClose || null
+    };
+  } catch (e) {
+    console.warn(`Could not fetch ticker info for ${ticker}:`, e.message);
+    return {
+      companyName: ticker,
+      previousClose: null
+    };
+  }
+}
+
 export async function fetchNextEarnings(ticker) {
   try {
     const res = await yahooFinance.quoteSummary(ticker, { modules: ['calendarEvents'] });

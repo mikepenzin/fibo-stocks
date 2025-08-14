@@ -50,128 +50,185 @@ function computeCMF(candles, period=20){
 
 function computeSRLevels(candles, opts={}) {
   if(!candles || candles.length < 20) return [];
-  const rangeSel = document.getElementById('range')?.value || '1d';
-  // Use deeper history for better S/R derivation
-  let histBars;
-  if (rangeSel === '5m') histBars = 600;           // ~2 trading days
-  else if (rangeSel === '15m') histBars = 900;      // ~2+ weeks intraday
-  else if (rangeSel === '1h') histBars = 900;       // ~5-6 weeks
-  else if (rangeSel === '1d') histBars = 260;       // ~1 trading year
-  else histBars = 400;                              // weekly ~7+ years max fallback
-  const src = candles.slice(-histBars);
-
-  // Dynamic pivot width relative to dataset length
+  
+  // Use moderate history - enough to see major swings
+  const src = candles.slice(-80); // ~2-3 months
   const n = src.length;
-  const baseWin = rangeSel==='1d' ? 3 : 2; // smaller on intraday
-  const pivotLeft = Math.max(baseWin, Math.floor(n/120));
-  const pivotRight = pivotLeft; // symmetric window
-
-  // Collect raw pivot points
-  const pivots = [];
-  for (let i=pivotLeft; i < n - pivotRight; i++) {
-    let isHigh = true, isLow = true;
-    const c = src[i];
-    for (let k=1;k<=pivotLeft;k++) {
-      if (src[i-k].h > c.h || src[i+k].h > c.h) isHigh = false;
-      if (src[i-k].l < c.l || src[i+k].l < c.l) isLow = false;
-      if(!isHigh && !isLow) break;
+  
+  if (n < 15) return [];
+  
+  // Find significant swing highs and lows with adaptive window
+  const swings = [];
+  
+  // First pass: Find major swings with standard window
+  const pivotWindow = 4;
+  for (let i = pivotWindow; i < n - pivotWindow; i++) {
+    const current = src[i];
+    let isSwingHigh = true;
+    let isSwingLow = true;
+    
+    // Check if this is a clear swing high or low
+    for (let j = 1; j <= pivotWindow; j++) {
+      if (src[i-j].h >= current.h || src[i+j].h >= current.h) {
+        isSwingHigh = false;
+      }
+      if (src[i-j].l <= current.l || src[i+j].l <= current.l) {
+        isSwingLow = false;
+      }
     }
-    if (isHigh) pivots.push({price:c.h, type:'resistance', vol:c.v||0, idx:i});
-    if (isLow) pivots.push({price:c.l, type:'support', vol:c.v||0, idx:i});
-  }
-  if(!pivots.length) return [];
-
-  // Initial merge tolerance (% of price). Tighter than before for finer clustering.
-  const pricesAll = pivots.map(p=>p.price);
-  const minP = Math.min(...pricesAll), maxP = Math.max(...pricesAll);
-  const priceRange = maxP - minP || 1;
-  const tolPct = 0.004; // 0.4%
-  const tolerance = priceRange * tolPct;
-
-  // Sort by price then merge close pivots into clusters
-  pivots.sort((a,b)=>a.price-b.price);
-  const clusters = [];
-  for (const p of pivots) {
-    let found = clusters.find(cl => Math.abs(cl.center - p.price) <= tolerance);
-    if (found) {
-      found.points.push(p);
-      // weighted center by touches (point count) and volume
-      const wOld = found.points.length - 1;
-      const wNew = 1;
-      found.center = (found.center * wOld + p.price * wNew)/(wOld + wNew);
-      if (p.type==='support') found.supportCount++; else found.resCount++;
-      found.totalVol += p.vol || 0;
-      found.lastIdx = Math.max(found.lastIdx, p.idx);
-      found.firstIdx = Math.min(found.firstIdx, p.idx);
-    } else {
-      clusters.push({
-        center: p.price,
-        points: [p],
-        supportCount: p.type==='support'?1:0,
-        resCount: p.type==='resistance'?1:0,
-        totalVol: p.vol||0,
-        firstIdx: p.idx,
-        lastIdx: p.idx
+    
+    if (isSwingHigh) {
+      swings.push({
+        price: current.h,
+        type: 'resistance',
+        index: i,
+        volume: current.v || 0,
+        strength: 'normal'
+      });
+    }
+    
+    if (isSwingLow) {
+      swings.push({
+        price: current.l,
+        type: 'support',
+        index: i,
+        volume: current.v || 0,
+        strength: 'normal'
       });
     }
   }
-
-  // Score clusters: touches + volume weight + recency weight + balance bonus
-  const lastIndex = n-1;
-  const lastClose = src[n-1].c; // Get current price for comparison
   
-  clusters.forEach(cl => {
-    const touches = cl.points.length;
-    const volNorm = cl.totalVol / (1 + Math.max(...clusters.map(c=>c.totalVol))) * 2; // 0..2
-    const recency = 1 - (lastIndex - cl.lastIdx)/ (lastIndex || 1); // 0 recent ..1 very recent
-    const balance = (cl.supportCount>0 && cl.resCount>0) ? 1 : 0; // acted as both sides
-    cl.score = touches * 2 + volNorm + recency * 1.5 + balance * 1.2;
+  // Second pass: Find sharp spikes/rejections with smaller window
+  const spikeWindow = 2;
+  for (let i = spikeWindow; i < n - spikeWindow; i++) {
+    const current = src[i];
+    let isSharpHigh = true;
+    let isSharpLow = true;
+    
+    // Check for sharp spikes - more sensitive detection
+    for (let j = 1; j <= spikeWindow; j++) {
+      if (src[i-j].h >= current.h || src[i+j].h >= current.h) {
+        isSharpHigh = false;
+      }
+      if (src[i-j].l <= current.l || src[i+j].l <= current.l) {
+        isSharpLow = false;
+      }
+    }
+    
+    // Only add if it's a significant spike (not already found in first pass)
+    const alreadyFound = swings.some(s => Math.abs(s.index - i) <= 2);
+    
+    if (isSharpHigh && !alreadyFound) {
+      // Check if it's a significant high compared to recent price action
+      const recentHigh = Math.max(...src.slice(Math.max(0, i-10), i+10).map(c => c.h));
+      if (current.h >= recentHigh * 0.95) { // Within 5% of recent high
+        swings.push({
+          price: current.h,
+          type: 'resistance',
+          index: i,
+          volume: current.v || 0,
+          strength: 'spike'
+        });
+      }
+    }
+    
+    if (isSharpLow && !alreadyFound) {
+      // Check if it's a significant low compared to recent price action
+      const recentLow = Math.min(...src.slice(Math.max(0, i-10), i+10).map(c => c.l));
+      if (current.l <= recentLow * 1.05) { // Within 5% of recent low
+        swings.push({
+          price: current.l,
+          type: 'support',
+          index: i,
+          volume: current.v || 0,
+          strength: 'spike'
+        });
+      }
+    }
+  }
+  
+  if (swings.length === 0) return [];
+  
+  // Group nearby swings (within 2% of each other) - increased tolerance
+  const groups = [];
+  const tolerance = 0.02; // 2% - wider grouping to prevent close levels
+  
+  swings.forEach(swing => {
+    let foundGroup = false;
+    
+    for (let group of groups) {
+      const groupAvg = group.reduce((sum, s) => sum + s.price, 0) / group.length;
+      if (Math.abs(swing.price - groupAvg) / groupAvg <= tolerance) {
+        group.push(swing);
+        foundGroup = true;
+        break;
+      }
+    }
+    
+    if (!foundGroup) {
+      groups.push([swing]);
+    }
   });
-
-  // Deduplicate overlapping high-score clusters enforcing minimum spacing
-  clusters.sort((a,b)=> b.score - a.score);
-  const final = [];
-  const minSpacing = priceRange * 0.018; // 1.8% spacing
   
-  // Ensure balanced representation: get best resistance and support levels
-  const maxLevels = opts.maxLevels || 8; // Increase limit slightly
-  const resistanceClusters = clusters.filter(cl => cl.center > lastClose);
-  const supportClusters = clusters.filter(cl => cl.center < lastClose);
+  // Convert groups to S/R levels
+  const currentPrice = src[n-1].c;
+  const levels = [];
   
-  // Add top resistance levels (max 4-5)
-  let addedCount = 0;
-  for (const cl of resistanceClusters) {
-    if (final.some(f=> Math.abs(f.level - cl.center) < minSpacing)) continue;
+  groups.forEach(group => {
+    const avgPrice = group.reduce((sum, s) => sum + s.price, 0) / group.length;
+    const touches = group.length;
+    const mostRecentIndex = Math.max(...group.map(s => s.index));
+    const recency = mostRecentIndex / n; // 0 to 1
     
-    final.push({
-      level: cl.center,
-      touches: cl.points.length,
-      score: +cl.score.toFixed(3),
-      type: 'resistance'
-    });
-    addedCount++;
-    if (addedCount >= 4) break; // Limit resistance levels to make room for support
-  }
-  
-  // Add top support levels (ensure at least 2 if they exist)
-  for (const cl of supportClusters) {
-    if (final.some(f=> Math.abs(f.level - cl.center) < minSpacing)) continue;
+    // Check if group contains spikes (sharp rejections are important)
+    const hasSpike = group.some(s => s.strength === 'spike');
+    const spikeBonus = hasSpike ? 2 : 0;
     
-    final.push({
-      level: cl.center,
-      touches: cl.points.length,
-      score: +cl.score.toFixed(3),
-      type: 'support'
+    // Simple scoring: touches + recency weight + spike bonus
+    const score = touches * 3 + recency * 2 + spikeBonus;
+    
+    // Determine type based on position relative to current price
+    let type;
+    if (avgPrice > currentPrice * 1.01) {
+      type = 'resistance';
+    } else if (avgPrice < currentPrice * 0.99) {
+      type = 'support';
+    } else {
+      type = 'current'; // Near current price
+    }
+    
+    levels.push({
+      level: avgPrice,
+      touches: touches,
+      score: score,
+      type: type,
+      recency: recency,
+      hasSpike: hasSpike
     });
-    addedCount++;
-    if (addedCount >= maxLevels) break;
-  }
-
-  // Ensure we include a level near current price if none within 1% (helps match examples)
-  if(!final.some(l => Math.abs(l.level - lastClose)/lastClose < 0.01)) {
-    final.push({level:lastClose, touches:1, score:0.5, type:'price'});
-  }
-  // Sort descending for drawing (top to bottom visually optional)
-  const result = final.sort((a,b)=> b.level - a.level);
-  return result;
+  });
+  
+  // Sort by score and filter
+  levels.sort((a, b) => b.score - a.score);
+  
+  // Get best resistance and support levels
+  const resistanceLevels = levels.filter(l => l.type === 'resistance').slice(0, 3);
+  const supportLevels = levels.filter(l => l.type === 'support').slice(0, 3);
+  
+  // Combine and ensure good spacing
+  const finalLevels = [...resistanceLevels, ...supportLevels];
+  const result = [];
+  
+  // Remove levels that are too close to each other
+  finalLevels.forEach(level => {
+    const tooClose = result.some(existing => {
+      const priceDiff = Math.abs(existing.level - level.level) / existing.level;
+      return priceDiff < 0.05; // 5% minimum spacing - increased from 3%
+    });
+    
+    if (!tooClose) {
+      result.push(level);
+    }
+  });
+  
+  return result.sort((a, b) => b.level - a.level); // Sort high to low correctly
 }
