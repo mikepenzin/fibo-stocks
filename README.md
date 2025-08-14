@@ -2,6 +2,10 @@
 
 Express API + Bootstrap frontend. Fetches Yahoo Finance data server-side, computes RSI/CCI/ATR, SMA50/200 trend, volume delta, and auto Fib trade plan. Renders a quick OHLC+Fib canvas chart in the browser.
 
+## 🚀 Live Demo
+
+**Try it now:** [https://fibo-stocks.onrender.com/](https://fibo-stocks.onrender.com/)
+
 ## Run locally
 ```bash
 npm install
