@@ -1,7 +1,6 @@
 // Ticker search and autocomplete functionality
-const tickerEl = $('#ticker');
-const boxEl = $('#suggestBox');
-const listEl = $('#tickerList');
+let tickerEl, boxEl, listEl;
+let suggestTimer;
 
 function upperSanitize(v){ 
   return v.toUpperCase().replace(/[^A-Z0-9\.\-]/g,''); 
@@ -37,7 +36,6 @@ function renderSuggestions(items){
   });
 }
 
-let suggestTimer;
 async function fetchSuggestions(q){
   try{
     const r = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`, { cache:'no-store' });
@@ -49,6 +47,11 @@ async function fetchSuggestions(q){
 
 // Initialize ticker input handlers
 function initializeTickerInput() {
+  // Initialize DOM element references
+  tickerEl = $('#ticker');
+  boxEl = $('#suggestBox');
+  listEl = $('#tickerList');
+  
   if (tickerEl) {
     tickerEl.addEventListener('input',(e)=>{
       const pos = e.target.selectionStart;

@@ -171,6 +171,11 @@ async function analyze(ticker){
       updateFlowTitle(); 
     }
 
+    // Add to recently viewed stocks after successful analysis
+    if (window.addToRecentlyViewed) {
+      addToRecentlyViewed(ticker);
+    }
+
   }catch(err){
     const a=$('#alert'); a.textContent = 'Error: ' + (err.message || err); a.classList.remove('d-none');
   }finally{

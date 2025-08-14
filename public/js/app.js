@@ -5,7 +5,9 @@ function initializeEventHandlers() {
     e.preventDefault();
     const t = document.querySelector('#ticker').value.trim();
     if(!t) return;
-    showBox(false);
+    if (typeof showBox === 'function') {
+      showBox(false);
+    }
     analyze(t.toUpperCase());
   });
 
@@ -17,7 +19,9 @@ function initializeEventHandlers() {
       if (headerTimeframe) headerTimeframe.textContent = e.target.value.toUpperCase();
       const tfBadge = document.getElementById('tfBadge');
       if (tfBadge) tfBadge.textContent = e.target.value.toUpperCase();
-      clearBacktest();
+      if (typeof clearBacktest === 'function') {
+        clearBacktest();
+      }
     });
   }
 
@@ -27,7 +31,9 @@ function initializeEventHandlers() {
     maBasisEl.addEventListener('change', e=>{
       const headerMABasis = document.getElementById('headerMABasis');
       if(headerMABasis) headerMABasis.textContent = e.target.value.replace('-','/');
-      clearBacktest();
+      if (typeof clearBacktest === 'function') {
+        clearBacktest();
+      }
     });
   }
 
@@ -100,9 +106,30 @@ function initializeEventHandlers() {
 
 // Main initialization function - called after all scripts are loaded
 function initApp() {
-  initializeTickerInput();
-  initializeEventHandlers();
-  initializeModals();
+  // Initialize components that are available
+  if (typeof initializeTickerInput === 'function') {
+    initializeTickerInput();
+  } else {
+    console.warn('initializeTickerInput not available');
+  }
+
+  if (typeof initializeEventHandlers === 'function') {
+    initializeEventHandlers();
+  } else {
+    console.warn('initializeEventHandlers not available');
+  }
+
+  if (typeof initializeModals === 'function') {
+    initializeModals();
+  } else {
+    console.warn('initializeModals not available');
+  }
+
+  if (typeof initRecentlyViewed === 'function') {
+    initRecentlyViewed();
+  } else {
+    console.warn('initRecentlyViewed not available');
+  }
   
   // Setup routing
   if (window.stockRouter) {

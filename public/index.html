@@ -62,6 +62,16 @@
             <option value="50-150">MA50/150</option>
           </select>
         </div>
+        <div class="col-auto">
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="recentlyViewedBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Recently viewed stocks">
+              <i class="bi bi-clock-history"></i> Recent
+            </button>
+            <ul class="dropdown-menu" id="recentlyViewedList" aria-labelledby="recentlyViewedBtn">
+              <li><span class="dropdown-item-text text-muted small">No recent stocks</span></li>
+            </ul>
+          </div>
+        </div>
         <div class="col-auto"><button id="go" class="btn btn-primary" type="submit">Analyze</button></div>
         <div class="col-auto"><span id="spin" class="spinner-border spinner-border-sm text-primary d-none"></span></div>
       </form>
@@ -261,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
     'js/technical-analysis.js',
     'js/chart-rendering.js',
     'js/modals.js',
+    'js/recently-viewed.js',
     'js/analysis.js',
     'js/export.js',
     'js/routing.js',
@@ -274,12 +285,27 @@ document.addEventListener('DOMContentLoaded', function() {
       // All scripts loaded - now initialize the app
       console.log('All scripts loaded, initializing app...');
       
+      // Check if all required functions are available
+      const requiredFunctions = ['initializeTickerInput', 'initializeEventHandlers', 'initializeModals', 'initRecentlyViewed'];
+      const missingFunctions = requiredFunctions.filter(func => typeof window[func] !== 'function');
+      
+      if (missingFunctions.length > 0) {
+        console.error('Missing required functions:', missingFunctions);
+        console.log('Available functions:', Object.keys(window).filter(key => typeof window[key] === 'function'));
+      }
+      
       // Mark app as initialized to prevent double initialization
       window.appInitialized = true;
       
       // Initialize the app
       if (window.initApp) {
-        window.initApp();
+        try {
+          window.initApp();
+        } catch (error) {
+          console.error('Error initializing app:', error);
+        }
+      } else {
+        console.error('initApp function not found');
       }
       
       // Small delay to ensure all initialization is complete, then check URL
@@ -297,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function() {
     script.src = scripts[index] + '?v=' + version;
     script.onload = function() {
       loadedCount++;
-      console.log('Loaded script:', scripts[index]);
+      console.log('Loaded script:', scripts[index], `(${loadedCount}/${scripts.length})`);
       loadScript(index + 1); // Load next script
     };
     script.onerror = function() {
