@@ -163,14 +163,32 @@ async function downloadImage() {
       } else {
         const a = document.createElement('a'); 
         a.href = dataURL; 
-        a.download = 'stock-analysis.png'; 
+        // Use ticker as prefix for filename if available
+        let prefix = '';
+        if (localStorage.getItem("stockAnalyzer_recentlyViewed")) {
+            prefix = JSON.parse(localStorage.getItem("stockAnalyzer_recentlyViewed"))[0].toUpperCase() + '-';
+        }
+
+        const now = new Date();
+        const pad = (num) => String(num).padStart(2, '0');
+        const formattedDate = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}-${pad(now.getHours())}-${pad(now.getMinutes())}`;
+        a.download = prefix + 'stock-analysis-' + formattedDate + '.png'; 
         a.click();
         showToast('Download started', 'success');
       }
     } else {
       const a = document.createElement('a'); 
       a.href = canvas.toDataURL('image/png'); 
-      a.download = 'stock-analysis.png'; 
+      // Use ticker as prefix for filename if available
+      let prefix = '';
+      if (localStorage.getItem("stockAnalyzer_recentlyViewed")) {
+        prefix = JSON.parse(localStorage.getItem("stockAnalyzer_recentlyViewed"))[0].toUpperCase() + '-';
+      }
+      const now = new Date();
+      const pad = (num) => String(num).padStart(2, '0');
+      const formattedDate = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}-${pad(now.getHours())}-${pad(now.getMinutes())}`;
+
+      a.download = prefix + 'stock-analysis-' + formattedDate + '.png'; 
       a.click();
       showToast('Download started', 'success');
     }

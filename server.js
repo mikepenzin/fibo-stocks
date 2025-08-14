@@ -124,18 +124,8 @@ app.get('/api/backtest/:ticker', async (req, res) => {
 // Serve frontend
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Fallback to index.html for navigation routes (not for API or static files)
+// Fallback to index.html
 app.get('*', (req, res) => {
-  // Don't intercept API routes or static files
-  if (req.path.startsWith('/api/') || 
-      req.path.includes('.js') || 
-      req.path.includes('.css') || 
-      req.path.includes('.html') ||
-      req.path.includes('.png') ||
-      req.path.includes('.jpg') ||
-      req.path.includes('.ico')) {
-    return res.status(404).send('Not found');
-  }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
