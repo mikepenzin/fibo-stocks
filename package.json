@@ -1,7 +1,7 @@
 {
   "name": "node-stock-analyzer",
   "version": "1.0.0",
-  "description": "Stocks 1D Analyzer – Express API + Bootstrap frontend (Yahoo data, technical indicators, Fib plan)",
+  "description": "Stocks Analyzer – Express API + Bootstrap frontend (Yahoo data, technical indicators, Fib plan)",
   "main": "server.js",
   "type": "module",
   "scripts": {

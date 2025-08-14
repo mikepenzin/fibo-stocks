@@ -1,0 +1,198 @@
+/* Main Styles */
+body {
+  padding-block: 24px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+canvas {
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+  width: 100%;
+  height: auto;
+}
+
+/* Key-Value Grid Layout */
+.kv {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .25rem .75rem;
+}
+
+.kv .k {
+  color: var(--bs-secondary-color);
+}
+
+/* Fibonacci Grid */
+.fib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: .5rem;
+}
+
+/* Ticker Input */
+#ticker.ticker-input {
+  text-transform: uppercase;
+}
+
+/* Custom Autocomplete Dropdown Styling */
+#suggestBox.list-group {
+  border: 1px solid #b6b6b6;
+  box-shadow: 0 2px 8px #0001;
+  background: #fff;
+}
+
+#suggestBox .autocomplete-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#suggestBox .autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+#suggestBox .autocomplete-item:hover,
+#suggestBox .autocomplete-item.active {
+  background: #f3f6fa;
+}
+
+#suggestBox .ac-symbol {
+  font-weight: bold;
+  font-size: 1.15em;
+  color: #1a237e;
+  letter-spacing: 1px;
+}
+
+#suggestBox .ac-type {
+  font-size: 0.85em;
+  margin-left: 8px;
+  background: #e3e6ee;
+  color: #333;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-weight: 500;
+}
+
+#suggestBox .ac-name {
+  color: #444;
+  font-size: 0.98em;
+  margin-top: 2px;
+}
+
+#suggestBox .ac-exch {
+  color: #888;
+  font-size: 0.85em;
+  margin-top: 1px;
+}
+
+/* Metric Status Colors */
+.metric-good {
+  color: #198754;
+  font-weight: 500;
+}
+
+.metric-warn {
+  color: #ffc107;
+  font-weight: 500;
+}
+
+.metric-bad {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+/* Insight Box */
+.insight-box {
+  background: var(--bs-light-bg-subtle, #f8f9fa);
+  border: 1px dashed var(--bs-border-color);
+  padding: .5rem .75rem;
+  border-radius: .5rem;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  body {
+    padding-block: 12px;
+  }
+  
+  .container {
+    padding: 0 10px;
+  }
+  
+  canvas {
+    cursor: pointer !important;
+    border-radius: 0.25rem;
+  }
+  
+  .modal-dialog {
+    margin: 5px;
+    max-width: calc(100vw - 10px) !important;
+  }
+  
+  .modal-body {
+    padding: 10px;
+  }
+  
+  .modal-header {
+    padding: 10px;
+  }
+  
+  .modal-footer {
+    padding: 10px;
+  }
+  
+  .btn {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    min-height: 44px;
+  }
+  
+  .card {
+    margin-bottom: 15px;
+  }
+  
+  .card-body {
+    padding: 15px;
+  }
+  
+  h1 {
+    font-size: 1.25rem;
+  }
+  
+  .text-secondary {
+    font-size: 0.8rem;
+  }
+  
+  /* Better touch targets */
+  .form-control,
+  .form-select {
+    padding: 10px;
+    font-size: 16px;
+  }
+  
+  /* Prevent zoom on input focus */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  canvas:hover {
+    opacity: 0.9;
+  }
+  
+  .autocomplete-item:hover {
+    background: #f3f6fa;
+  }
+}

@@ -1,4 +1,4 @@
-# Node Stocks 1D Analyzer
+# Stocks Analyzer
 
 Express API + Bootstrap frontend. Fetches Yahoo Finance data server-side, computes RSI/CCI/ATR, SMA50/200 trend, volume delta, and auto Fib trade plan. Renders a quick OHLC+Fib canvas chart in the browser.
 
