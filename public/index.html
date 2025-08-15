@@ -114,6 +114,9 @@
             <div class="k" title="ATR as % of price">ATR %</div><div class="v" id="atrpct"></div>
             <div class="k" title="Volume vs 20 period moving average">Vol Δ vs 20d</div><div class="v" id="vold"></div>
             <div class="k" title="Next earnings date distance">Earnings</div><div class="v" id="earn"></div>
+            <div class="k" title="Relative volume speed vs same time average">Rel. Vol Speed</div><div class="v" id="relVolSpeed"></div>
+            <div class="k" title="Current session accumulated volume">Session Vol</div><div class="v" id="sessionVol"></div>
+            <div class="k" title="Average volume for same time period">Avg Vol (same time)</div><div class="v" id="avgSessionVol"></div>
           </div>
           <div id="insight" class="insight-box small mt-2 d-none"></div>
           <hr>
@@ -190,7 +193,18 @@
               </button>
             </div>
           </div>
-          <div class="small text-secondary mt-2">Lightweight canvas rendering (price + selectable flow metric + S/R levels).</div>
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="fw-semibold small">MACD (12, 26, 9)</div>
+          </div>
+          <div class="position-relative">
+            <canvas id="macdChart" width="980" height="180" class="mt-2 chart-canvas"></canvas>
+            <div class="position-absolute top-0 end-0 mt-2">
+              <button class="btn btn-sm btn-light opacity-75" title="View fullscreen" onclick="openMACDModal()">
+                <i class="bi bi-zoom-in"></i>
+              </button>
+            </div>
+          </div>
+          <div class="small text-secondary mt-2">Lightweight canvas rendering (price + selectable flow metric + S/R levels + MACD).</div>
         </div>
       </div>
     </div>
@@ -258,6 +272,23 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary btn-sm" id="srModalSave">Save PNG</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" id="macdModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-md-down modal-xl" style="max-width:95vw;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">MACD (12, 26, 9)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <canvas id="macdModalCanvas" width="1400" height="320" class="w-100 border rounded"></canvas>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary btn-sm" id="macdModalSave">Save PNG</button>
           <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>

@@ -215,6 +215,184 @@ function drawSRChart(canvas, candles){
   ctx.fillText('S/R Levels', padL+4, 4);
 }
 
+function drawMACDChart(canvas, candles, metrics){
+  const ctx = canvas.getContext('2d'); 
+  const W = canvas.width, H = canvas.height; 
+  ctx.clearRect(0, 0, W, H); 
+  
+  if (!candles || !candles.length || !metrics?.macd) return;
+
+  const { line: macdLine, signal: signalLine, histogram } = metrics.macd;
+  
+  if (!macdLine || macdLine.length === 0) return;
+  
+  // Find valid data range
+  const validData = [];
+  for (let i = 0; i < macdLine.length; i++) {
+    if (macdLine[i] !== null && macdLine[i] !== undefined && !isNaN(macdLine[i])) {
+      validData.push({
+        index: i,
+        macd: macdLine[i],
+        signal: (signalLine[i] !== null && signalLine[i] !== undefined && !isNaN(signalLine[i])) ? signalLine[i] : null,
+        histogram: (histogram[i] !== null && histogram[i] !== undefined && !isNaN(histogram[i])) ? histogram[i] : null
+      });
+    }
+  }
+  
+  if (validData.length === 0) return;
+  
+  // Get reasonable data ranges
+  const macdValues = validData.map(d => d.macd);
+  const signalValues = validData.map(d => d.signal).filter(v => v !== null);
+  const histogramValues = validData.map(d => d.histogram).filter(v => v !== null);
+  
+  const allValues = [...macdValues, ...signalValues, ...histogramValues];
+  const minVal = Math.min(...allValues);
+  const maxVal = Math.max(...allValues);
+  
+  // Add padding and ensure reasonable range
+  const range = Math.max(maxVal - minVal, 0.001);
+  const padding = range * 0.15;
+  const chartMin = minVal - padding;
+  const chartMax = maxVal + padding;
+
+  const padL = 50, padR = 10, padT = 10, padB = 20;
+  const n = validData.length;
+  
+  if (n <= 1) return; // Need at least 2 points
+  
+  const x = i => padL + (i / (n - 1)) * (W - padL - padR);
+  const y = v => padT + (1 - (v - chartMin) / (chartMax - chartMin)) * (H - padT - padB);
+
+  // Background
+  ctx.fillStyle = '#fafafa'; 
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = '#e0e0e0'; 
+  ctx.lineWidth = 1; 
+  ctx.setLineDash([3, 3]); 
+  ctx.beginPath();
+  for (let i = 0; i <= 4; i++) {
+    const yy = padT + i * (H - padT - padB) / 4;
+    ctx.moveTo(padL, yy); 
+    ctx.lineTo(W - padR, yy);
+  }
+  ctx.stroke(); 
+  ctx.setLineDash([]);
+
+  // Zero line
+  if (chartMin < 0 && chartMax > 0) {
+    const zeroY = y(0);
+    ctx.strokeStyle = '#999'; 
+    ctx.lineWidth = 1;
+    ctx.beginPath(); 
+    ctx.moveTo(padL, zeroY); 
+    ctx.lineTo(W - padR, zeroY); 
+    ctx.stroke();
+  }
+
+  // Draw histogram bars
+  ctx.globalAlpha = 0.6;
+  for (let i = 0; i < validData.length; i++) {
+    const histVal = validData[i].histogram;
+    if (histVal !== null) {
+      const xx = x(i);
+      const yy = y(histVal);
+      const zeroY = y(0);
+      
+      ctx.fillStyle = histVal >= 0 ? '#22c55e' : '#ef4444';
+      
+      const barWidth = Math.max(1, (W - padL - padR) / n * 0.8);
+      
+      if (histVal >= 0) {
+        ctx.fillRect(xx - barWidth/2, yy, barWidth, zeroY - yy);
+      } else {
+        ctx.fillRect(xx - barWidth/2, zeroY, barWidth, yy - zeroY);
+      }
+    }
+  }
+  ctx.globalAlpha = 1.0;
+
+  // Draw MACD line
+  ctx.beginPath(); 
+  ctx.lineWidth = 2; 
+  ctx.strokeStyle = '#3b82f6';
+  let started = false;
+  
+  for (let i = 0; i < validData.length; i++) {
+    const macdVal = validData[i].macd;
+    const xx = x(i);
+    const yy = y(macdVal);
+    
+    if (!started) {
+      ctx.moveTo(xx, yy); 
+      started = true; 
+    } else {
+      ctx.lineTo(xx, yy);
+    }
+  }
+  ctx.stroke();
+
+  // Draw signal line
+  if (signalValues.length > 0) {
+    ctx.beginPath(); 
+    ctx.lineWidth = 2; 
+    ctx.strokeStyle = '#f97316';
+    started = false;
+    
+    for (let i = 0; i < validData.length; i++) {
+      const signalVal = validData[i].signal;
+      if (signalVal !== null) {
+        const xx = x(i);
+        const yy = y(signalVal);
+        
+        if (!started) {
+          ctx.moveTo(xx, yy); 
+          started = true; 
+        } else {
+          ctx.lineTo(xx, yy);
+        }
+      }
+    }
+    ctx.stroke();
+  }
+
+  // Y-axis labels
+  ctx.fillStyle = '#666'; 
+  ctx.font = '10px system-ui'; 
+  ctx.textAlign = 'right'; 
+  ctx.textBaseline = 'middle';
+  
+  const labelVals = [chartMin, (chartMin + chartMax) / 2, chartMax];
+  labelVals.forEach(val => {
+    const yy = y(val);
+    ctx.fillText(val.toFixed(3), padL - 4, yy);
+  });
+
+  // Left axis line
+  ctx.strokeStyle = '#ddd'; 
+  ctx.lineWidth = 1; 
+  ctx.beginPath(); 
+  ctx.moveTo(padL, padT); 
+  ctx.lineTo(padL, H - padB); 
+  ctx.stroke();
+
+  // Legend
+  ctx.font = '12px system-ui'; 
+  ctx.textAlign = 'left'; 
+  ctx.textBaseline = 'top';
+  
+  ctx.fillStyle = '#3b82f6'; 
+  ctx.fillText('MACD', padL + 4, 4);
+  
+  ctx.fillStyle = '#f97316'; 
+  ctx.fillText('Signal', padL + 50, 4);
+  
+  ctx.fillStyle = '#666'; 
+  ctx.fillText('Histogram', padL + 100, 4);
+}
+
 function drawFlowFromSelection(){ 
   const metric = document.getElementById('flowMetric')?.value||'OBV'; 
   const canvas=document.getElementById('flowChart'); 
@@ -224,6 +402,11 @@ function drawFlowFromSelection(){
 function drawSRFromSelection(){ 
   const canvas=document.getElementById('srChart'); 
   if(canvas && lastCandles) drawSRChart(canvas,lastCandles); 
+}
+
+function drawMACDFromSelection(){ 
+  const canvas=document.getElementById('macdChart'); 
+  if(canvas && lastCandles && lastMetrics) drawMACDChart(canvas, lastCandles, lastMetrics); 
 }
 
 function updateFlowTitle(){
@@ -238,6 +421,7 @@ function copyChartToClone(cloneCard) {
     drawChart(document.getElementById('chart'), lastCandles, lastFib || {});
     drawFlowFromSelection();
     drawSRFromSelection();
+    drawMACDFromSelection();
   }
   
   const origCanvases = document.querySelectorAll('#chartCard canvas');

@@ -163,6 +163,7 @@ async function analyze(ticker){
       drawChart($('#chart'), lastCandles, plan.fib); 
       drawFlowFromSelection(); 
       drawSRFromSelection(); 
+      drawMACDFromSelection(); 
       updateFlowTitle(); 
     }
 
@@ -171,6 +172,36 @@ async function analyze(ticker){
       addToRecentlyViewed(ticker);
     }
 
+    // Show relative volume speed
+    const relVolSpeedEl = document.getElementById('relVolSpeed');
+    if (metrics.rel_vol_speed !== undefined && metrics.rel_vol_speed !== null) {
+      const v = metrics.rel_vol_speed;
+      relVolSpeedEl.textContent = (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+      relVolSpeedEl.className = v > 10 ? 'text-success' : (v < -10 ? 'text-danger' : 'text-muted');
+    } else {
+      relVolSpeedEl.textContent = 'N/A';
+      relVolSpeedEl.className = 'text-muted';
+    }
+
+    // Show session volume numbers
+    const sessionVolEl = document.getElementById('sessionVol');
+    const avgSessionVolEl = document.getElementById('avgSessionVol');
+    
+    if (metrics.session_volume !== undefined && metrics.session_volume !== null) {
+      sessionVolEl.textContent = formatVolume(metrics.session_volume);
+      sessionVolEl.className = 'text-primary';
+    } else {
+      sessionVolEl.textContent = 'N/A';
+      sessionVolEl.className = 'text-muted';
+    }
+    
+    if (metrics.avg_session_volume !== undefined && metrics.avg_session_volume !== null) {
+      avgSessionVolEl.textContent = formatVolume(metrics.avg_session_volume);
+      avgSessionVolEl.className = 'text-secondary';
+    } else {
+      avgSessionVolEl.textContent = 'N/A';
+      avgSessionVolEl.className = 'text-muted';
+    }
   }catch(err){
     const a=$('#alert'); a.textContent = 'Error: ' + (err.message || err); a.classList.remove('d-none');
   }finally{

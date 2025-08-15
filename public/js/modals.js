@@ -79,6 +79,31 @@ function openSRModal(){
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
 
+function openMACDModal(){
+  if(!lastCandles || !lastMetrics) return; 
+  const modalEl = document.getElementById('macdModal'); 
+  if(!modalEl) return;
+  
+  // Ensure modal is mobile-friendly
+  const modalDialog = modalEl.querySelector('.modal-dialog');
+  if (modalDialog) {
+    modalDialog.classList.add('modal-lg');
+    modalDialog.style.maxWidth = '95vw';
+    modalDialog.style.margin = '10px auto';
+  }
+  
+  const c = document.getElementById('macdModalCanvas'); 
+  if(c) { 
+    // Set canvas size for mobile
+    const isMobile = window.innerWidth < 768;
+    c.width = isMobile ? 600 : 800;
+    c.height = isMobile ? 300 : 400;
+    drawMACDChart(c, lastCandles, lastMetrics); 
+  }
+  
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
 // Initialize modal functionality
 function initializeModals() {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -136,6 +161,15 @@ function initializeModals() {
       const canvas = document.getElementById('srModalCanvas'); 
       if (!canvas) return; 
       downloadCanvasImage(canvas, 'sr-chart.png');
+    }); 
+  }
+  
+  const macdModalSave = document.getElementById('macdModalSave'); 
+  if (macdModalSave) { 
+    macdModalSave.addEventListener('click', () => { 
+      const canvas = document.getElementById('macdModalCanvas'); 
+      if (!canvas) return; 
+      downloadCanvasImage(canvas, 'macd-chart.png');
     }); 
   }
 }

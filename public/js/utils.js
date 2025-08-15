@@ -4,6 +4,21 @@ const show = (el, v)=>el.classList.toggle('d-none', !v);
 const pct = (x,d=2)=>Number.isFinite(x)?((x>=0?'+':'')+x.toFixed(d)+'%'):'n/a';
 const fmt = (x,d=2)=>Number.isFinite(x)?Number(x).toFixed(d):'n/a';
 
+// Format volume numbers (e.g., 1.2M, 850K, 45.6B)
+function formatVolume(vol) {
+  if (!Number.isFinite(vol) || vol === 0) return 'N/A';
+  
+  if (vol >= 1e9) {
+    return (vol / 1e9).toFixed(1) + 'B';
+  } else if (vol >= 1e6) {
+    return (vol / 1e6).toFixed(1) + 'M';
+  } else if (vol >= 1e3) {
+    return (vol / 1e3).toFixed(1) + 'K';
+  } else {
+    return vol.toString();
+  }
+}
+
 function clearBacktest(){
   const s=document.getElementById('btSection'); if(!s) return;
   s.classList.add('d-none');
